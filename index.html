@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>核灾变：求生</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460); min-height: 100vh; color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { display: flex; justify-content: space-between; padding: 15px 30px; background: rgba(0,0,0,0.5); border-radius: 12px; margin-bottom: 20px; }
+        .header-item { display: flex; align-items: center; gap: 10px; }
+        .header-item .value { font-weight: bold; color: #4ade80; }
+        .main-content { display: flex; gap: 20px; }
+        .scene-area { flex: 3; background: rgba(0,0,0,0.4); border-radius: 16px; overflow: hidden; }
+        .scene-header { padding: 20px; background: linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0.4)); }
+        .scene-title { color: #fbbf24; font-size: 20px; margin-bottom: 5px; }
+        .story-area { padding: 20px; background: rgba(10,20,40,0.6); }
+        .story-text { font-size: 16px; line-height: 1.8; color: #e5e7eb; }
+        .choices-area { padding: 20px; background: rgba(0,0,0,0.3); }
+        .choices-title { color: #fbbf24; margin-bottom: 15px; }
+        .choice-btn { display: block; width: 100%; padding: 15px; margin: 10px 0; background: rgba(74,222,128,0.1); border: 2px solid rgba(74,222,128,0.3); border-radius: 8px; color: #fff; text-align: left; cursor: pointer; transition: all 0.3s; }
+        .choice-btn:hover { background: rgba(74,222,128,0.2); border-color: #4ade80; }
+        .choice-label { color: #4ade80; font-weight: bold; margin-right: 10px; }
+        .status-panel { flex: 1; }
+        .status-card { background: rgba(0,0,0,0.4); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .status-card-title { color: #fbbf24; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .inventory-item { display: inline-block; padding: 8px 12px; background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.3); border-radius: 8px; font-size: 12px; color: #4ade80; margin: 5px; }
+        .companion-item { display: inline-block; padding: 8px 12px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; font-size: 12px; color: #60a5fa; margin: 5px; }
+        .stat-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #9ca3af; }
+        .stat-value { font-weight: bold; color: #4ade80; }
+        .stat-value.danger { color: #ef4444; }
+        .loading-screen { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #1a1a2e; display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .loading-spinner { width: 50px; height: 50px; border: 3px solid rgba(74,222,128,0.2); border-top-color: #4ade80; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .ending-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.98); flex-direction: column; justify-content: center; align-items: center; z-index: 1000; padding: 40px; }
+        .ending-screen.show { display: flex; }
+        .ending-title { color: #fbbf24; font-size: 32px; margin-bottom: 15px; }
+        .ending-type { padding: 8px 20px; background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); border-radius: 20px; color: #ef4444; margin-bottom: 20px; }
+        .ending-text { font-size: 18px; color: #e5e7eb; margin-bottom: 30px; text-align: center; max-width: 700px; line-height: 1.8; }
+        .restart-btn { padding: 15px 40px; background: #4ade80; border: none; border-radius: 12px; color: #1a1a2e; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .restart-btn:hover { background: #22c55e; }
+        .stats-panel { margin-top: 20px; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 12px; text-align: left; max-width: 400px; }
+        .stats-title { color: #fbbf24; margin-bottom: 15px; text-align: center; }
+        .stats-item { margin: 10px 0; }
+        .stats-label { color: #9ca3af; }
+        .stats-value { color: #4ade80; margin-left: 10px; }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen"><div class="loading-spinner"></div></div>
+    
+    <div class="container" id="gameContainer" style="display:none;">
+        <div class="header">
+            <div class="header-item"><span>时间</span><div class="value" id="gameTime">-</div></div>
+            <div class="header-item"><span>距离</span><div class="value" id="gameDistance">-</div></div>
+        </div>
+
+        <div class="main-content">
+            <div class="scene-area">
+                <div class="scene-header">
+                    <div class="scene-title" id="sceneTitle">序幕：末日降临</div>
+                </div>
+                <div class="story-area">
+                    <div class="story-text" id="storyText">加载中...</div>
+                </div>
+                <div class="choices-area">
+                    <div class="choices-title" id="choicesTitle">选择你的行动</div>
+                    <div id="choicesList"></div>
+                </div>
+            </div>
+
+            <div class="status-panel">
+                <div class="status-card">
+                    <div class="status-card-title">生存状态</div>
+                    <div class="stat-row"><span class="stat-label">物资数量</span><span class="stat-value" id="gameInventory">0</span></div>
+                    <div class="stat-row"><span class="stat-label">救人数</span><span class="stat-value" id="gameSaved">0</span></div>
+                    <div class="stat-row"><span class="stat-label">工具</span><span class="stat-value" id="gameTools">否</span></div>
+                    <div class="stat-row"><span class="stat-label">辐射值</span><span class="stat-value" id="gameRadiation">0</span></div>
+                </div>
+                <div class="status-card">
+                    <div class="status-card-title">物资清单</div>
+                    <div id="inventoryItems"><div class="inventory-item">空</div></div>
+                </div>
+                <div class="status-card">
+                    <div class="status-card-title">同伴</div>
+                    <div id="companionItems"><div class="companion-item">无</div></div>
+                </div>
+                <div class="status-card">
+                    <div class="status-card-title">角色信息</div>
+                    <div id="protagonistInfo"><div style="font-size:14px;color:#9ca3af;">请选择主角</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ending-screen" id="endingScreen">
+        <div class="ending-title" id="endingTitle">结局</div>
+        <div class="ending-type" id="endingType">结局类型</div>
+        <div class="ending-text" id="endingText">结局描述</div>
+        <div class="stats-panel" id="endingStats"></div>
+        <button class="restart-btn" onclick="restartGame()">重新开始</button>
+    </div>
+
+    <script>
+        let gameState = {
+            inventory: 0,
+            radiation: 0,
+            savedPeople: 0,
+            currentScene: 'prologue',
+            protagonist: null,
+            currentTime: '2026年4月26日 凌晨1:23',
+            distanceFromHome: null,
+            hasTools: false,
+            hasEva: false,
+            hasAndre: false,
+            hasKids: false,
+            didModifyCar: false,
+            finalChoice: null,
+            shelterChoice: null
+        };
+
+        const scenes = {
+            prologue: {
+                title: '选择主角',
+                time: '2026年4月26日 凌晨1:23',
+                text: '2026年4月26日，凌晨1:23。防空警报骤响，全城停电断网，电子设备全瘫。未知的危机正在爆发。请选择你要扮演的主角：',
+                choices: [
+                    { id: 'ivan', label: 'A', text: '伊万·索科洛夫 - 防化兵，正在公路上驾驶卡车' },
+                    { id: 'eva', label: 'B', text: '伊娃·柳德米拉 - 22岁大学生，军人世家' }
+                ],
+                next: { ivan: 'ivan_ch1', eva: 'eva_ch1' }
+            },
+            ivan_ch1: {
+                title: '序幕：末日降临',
+                time: '2026年4月26日 凌晨1:23',
+                text: '夜色深沉，万籁俱寂。你驾驶着卡车在空旷的公路上疾驰，收音机里正播放着你喜欢的摇滚音乐。重金属的节奏震动着车厢，也震动着你的心跳。突然，音乐戛然而止。取而代之的是一阵刺耳的电流声，然后是一个严肃的男声："紧急通知！紧急通知！亲爱的同胞们，我们刚刚确认，我们受到了敌国的核袭击。一枚核弹在米尔格勒上空被击毁，我们的军队已经对敌人做出反击。请米尔格勒附近的平民群众即刻前往以下撤离点……"',
+                choices: [{ id: 'go', label: '继续', text: '调转车头，驶向米尔格勒寻找家人' }],
+                next: { go: 'ivan_ch1_2' },
+                setFlags: { protagonist: 'ivan' }
+            },
+            ivan_ch1_2: {
+                title: '序幕：末日降临',
+                time: '2026年4月26日 凌晨1:30',
+                text: '你猛地踩下刹车。"米尔格勒......那不是我家吗？！"你的心一下子揪紧了。父母还在那里。他们一定在等我回家。你看了一眼后视镜，然后毫不犹豫地猛打方向盘，调转车头，朝着家乡的方向疾驰而去。就在这时，远处天空中闪过一道刺眼的光芒，紧接着是一声震耳欲聋的爆炸声。冲击波席卷而来，你的卡车剧烈摇晃。但你没有停下。"等着我，"你喃喃自语，"爸，妈，我一定会回去的。"',
+                choices: [{ id: 'go', label: '继续', text: '继续向米尔格勒前进' }],
+                next: { go: 'ivan_ch2' }
+            },
+            ivan_ch2: {
+                title: '第一章：穿越封锁线',
+                time: '2026年4月26日 凌晨5:34',
+                distance: 600,
+                text: '经过几个小时的颠簸，你终于接近了家乡的范围。但前方的景象让你心头一沉——公路上，车辆排成了长龙，绵延数公里。所有人都被困在这里，焦急地等待着。而在前方的十字路口，一排士兵设立了临时关卡。军用车辆、拒马、铁丝网......一切都在告诉你：禁止通行。"前面出什么事了？"你摇下车窗，向前面的车辆大声喊道。"军队设卡！"一个司机探出头回应，"说是前面有辐射，不让过！"你的拳头紧紧握住方向盘。',
+                choices: [
+                    { id: 'a', label: 'A', text: '强行闯卡' },
+                    { id: 'b', label: 'B', text: '下车沟通' },
+                    { id: 'c', label: 'C', text: '等待' }
+                ],
+                next: { a: 'ivan_ch2_a', b: 'ivan_ch2_b', c: 'ivan_ch2_c' },
+                effects: { radiation: 10 }
+            },
+            ivan_ch2_a: {
+                title: '结局：冲动者的下场',
+                time: '2026年4月26日 凌晨5:35',
+                text: '你深吸一口气，右手紧紧握住方向盘。"让开！"你低声嘶吼着，猛地踩下油门。发动机发出震耳欲聋的轰鸣声，卡车像一头失控的巨兽，朝着关卡直冲而去。正在与民众交谈的士兵们瞬间注意到了你的动向。"停车！立即停车！"一名士兵举起手中的步枪，对着天空鸣枪示警。砰！枪声划破清晨的宁静，但你充耳不闻。你的目光死死盯着前方的路障，脑海中只有一个念头：回家。"警告无效！目标强行闯关！"另一名士兵的声音透过扩音器传来。士兵们已经散开，枪口对准了你。"最后警告！停止前进！"你没有停下。砰！一颗子弹穿透了挡风玻璃。剧痛瞬间席卷全身。你低头看到，胸口已经渗出一片殷红。你下意识地松开了方向盘。卡车失去控制，撞向路边的护栏，发出巨大的撞击声。"我......不能死......"你试图抬起头，视线却越来越模糊。"家人......还在等我......"你最后的意识里，是父母慈祥的笑容。',
+                ending: { type: '死亡结局', title: '冲动者的下场', text: '在战争的法则中，冲动是最大的敌人。' }
+            },
+            ivan_ch2_c: {
+                title: '结局：别让等待成为遗憾',
+                time: '2026年4月26日 上午7:00',
+                text: '你决定在车上等，三分钟，十分钟，三十分钟，一晚上的奔波和疲惫化为睡意袭来。等你睁开眼，人群不断往后跑去。你从其他人的口中得知了辐射正在加剧，你不得不和他们一块进行了撤离。你不确定还能不能见到你的家人。',
+                ending: { type: '普通结局', title: '别让等待成为遗憾', text: '有时候，等待也是一种选择，但你永远不知道等待的代价是什么。' }
+            },
+            ivan_ch2_b: {
+                title: '第一章：穿越封锁线',
+                time: '2026年4月26日 凌晨5:36',
+                text: '你深吸一口气，缓缓松开方向盘。"硬闯不是办法，"你告诉自己，"得和他们谈谈。"你打开车门，跳下卡车。清晨的冷空气扑面而来，让你清醒了几分。你整理了一下身上的简易防辐射衣，然后越过前方的人群，径直向关卡后方走去。"站住！"一名年轻士兵立刻警觉地举起枪，"这里禁止通行！"你停下脚步，缓缓举起双手："别开枪，我没有恶意。"士兵打量着你，目光落在你粗糙的双手和坚毅的眼神上："你是谁？想干什么？""我叫伊万·谢尔盖耶维奇·索科洛夫，"你平静地说，"米尔格勒本地人。我想回家，我的父母还在那里等我。"就在这时，一个熟悉的声音从后方传来："伊万·索科洛夫？"你和士兵们同时望向声音的来源。一名穿着上尉军衔的军官正快步走来——是雷泽诺夫上尉。"报告上尉，原RCBZ伊万·谢尔盖耶维奇·索科洛夫中士，向您报道！"',
+                choices: [
+                    { id: 'a', label: 'A', text: '接受协助疏散任务' },
+                    { id: 'b', label: 'B', text: '拒绝，坚持回家' },
+                    { id: 'c', label: 'C', text: '假意接受，拿到物资后离开' }
+                ],
+                next: { a: 'ivan_ch3_a', b: 'ivan_ch3_b', c: 'ivan_ch3_c' }
+            },
+            ivan_ch3_a: {
+                title: '第一章：穿越封锁线',
+                time: '2026年4月26日 凌晨6:00',
+                distance: 600,
+                text: '"服从命令，长官！"雷泽诺夫满意地拍了拍你的肩膀："好样的，伊万。我就知道没看错你。"他转向士兵们："都听到了吗？给索科洛夫中士登记，他现在是我们的临时志愿者。把物资全装到他的车上。"士兵们开始忙碌起来，一箱箱物资被搬上你的卡车。',
+                choices: [{ id: 'go', label: '继续', text: '完成任务后继续前往米尔格勒' }],
+                next: { go: 'ivan_ch4' },
+                effects: { inventory: 20, radiation: 15 }
+            },
+            ivan_ch3_b: {
+                title: '第一章：穿越封锁线',
+                time: '2026年4月26日 凌晨5:45',
+                distance: 600,
+                text: '你表示自己时间来不及。听后，上尉眼中透露出一股难以描述的感情："我理解，伊万，相信你能保护好自己。这是一些物资，可能会帮上你，祝你好运。"上尉向后面的人摆了摆手，随即你被放行了。',
+                choices: [{ id: 'go', label: '继续', text: '继续前往米尔格勒' }],
+                next: { go: 'ivan_ch4' },
+                effects: { inventory: 3, radiation: 15 }
+            },
+            ivan_ch3_c: {
+                title: '第一章：穿越封锁线',
+                time: '2026年4月26日 凌晨6:00',
+                distance: 600,
+                text: '"服从命令，长官！"雷泽诺夫满意地拍了拍你的肩膀："好样的，伊万。我就知道没看错你。"他转向士兵们："都听到了吗？给索科洛夫中士登记，他现在是我们的临时志愿者。把物资全装到他的车上。"士兵们开始忙碌起来，一箱箱物资被搬上你的卡车。趁着混乱，你悄悄发动了引擎。',
+                choices: [{ id: 'go', label: '继续', text: '趁着混乱离开，前往米尔格勒' }],
+                next: { go: 'ivan_ch4' },
+                effects: { inventory: 20, radiation: 15 }
+            },
+            ivan_ch4: {
+                title: '第二章：公路惊魂',
+                time: '2026年4月26日 上午8:00',
+                distance: 530,
+                text: '你看着后视镜中穿着防化服的自己，仪表盘上的时钟显示：8:00。今天是4月26日，星期日。在几个小时前，这还是一个普通的春日清晨。而现在，一切都变了。阳光艰难地穿透灰蒙蒙的云层，照亮了这片满目疮痍的土地。你的辐射检测仪开始发出微弱的咔嗒声：0.02毫西弗/小时。这个数值还在安全范围内，但你知道，真正的危险还在前方。收音机里只剩下沙沙的杂音。路面上散落着抛弃的车辆、行李和各种杂物。你不得不蛇行绕过障碍，车速一直提不上去。突然，前方出现了一群人——大约七八个男女老少，手持棍棒和刀具，站在路中央拦截车辆。',
+                choices: [
+                    { id: 'a', label: 'A', text: '无视并冲过去' },
+                    { id: 'b', label: 'B', text: '绕道而行' },
+                    { id: 'c', label: 'C', text: '停车询问发生了什么' }
+                ],
+                next: { a: 'ivan_ch4_a', b: 'ivan_ch4_b', c: 'ivan_ch4_c' },
+                effects: { radiation: 20 }
+            },
+            ivan_ch4_a: {
+                title: '结局：失控',
+                time: '2026年4月26日 上午8:05',
+                text: '你当作没看到他们直接加速冲了过去，却没注意到地上的坑洞，卡车侧翻了过去，你失去了意识。等你醒来时你发现自己死死卡在车中，而警报器的声音逐渐加快......',
+                ending: { type: '死亡结局', title: '失控的代价', text: '在末日中，鲁莽行事只会带来毁灭。' }
+            },
+            ivan_ch4_b: {
+                title: '第二章：公路惊魂',
+                time: '2026年4月26日 上午8:15',
+                distance: 520,
+                text: '看着对方人多势众，你选择绕道而行。在后视镜中你看到对方不断向你挥手，你来不及多想，便重新踏上了路程。',
+                choices: [{ id: 'go', label: '继续', text: '继续前进' }],
+                next: { go: 'ivan_ch5' },
+                effects: { radiation: 15 }
+            },
+            ivan_ch4_c: {
+                title: '第二章：公路惊魂',
+                time: '2026年4月26日 上午8:10',
+                distance: 520,
+                text: '对方告诉你前方的路被炸毁了，需要绕道离开。对方表示需要一些物资来确保他们能撑到离开这个城市。',
+                choices: [
+                    { id: 'a', label: 'A', text: '给出一些物资并告诉他们撤离点', requiresInventory: 8 },
+                    { id: 'b', label: 'B', text: '表示没有多余物资，但告诉他们撤离点' }
+                ],
+                next: { a: 'ivan_ch4_c_a', b: 'ivan_ch4_c_b' },
+                effects: { radiation: 15 }
+            },
+            ivan_ch4_c_a: {
+                title: '第二章：公路惊魂',
+                time: '2026年4月26日 上午8:20',
+                distance: 520,
+                text: '你给出了一些物资，告诉了他们最近的撤离点后你又重新踏上了路程。"上帝保佑您，希望您能早日与您的家人团聚，先生。"人群中的老夫人感激道。对方给了你一个工具箱，这样就不用担心卡车损坏了。',
+                choices: [{ id: 'go', label: '继续', text: '继续前进' }],
+                next: { go: 'ivan_ch5' },
+                effects: { inventory: -8, hasTools: true, radiation: 10 }
+            },
+            ivan_ch4_c_b: {
+                title: '第二章：公路惊魂',
+                time: '2026年4月26日 上午8:15',
+                distance: 520,
+                text: '你表示自己也没有多余物资但你告诉了他们最近撤离点。"没关系，无论如何谢谢您，希望您能早日与您的家人团聚，先生。"人群中的老夫人表示道。',
+                choices: [{ id: 'go', label: '继续', text: '继续前进' }],
+                next: { go: 'ivan_ch5' },
+                effects: { radiation: 10 }
+            },
+            ivan_ch5: {
+                title: '第二章：荒野相遇',
+                time: '2026年4月26日 上午10:00',
+                distance: 520,
+                text: '你停下车，打算补充一下食物。路旁的麦田在微风中轻轻摇曳，野花在路边绽放。一切看起来都那么宁静。一个身影站了出来——是一个年轻女孩。长发凌乱，脸上满是灰尘和泪痕。她穿着学生装，背着一个破旧的大书包，手里紧紧攥着一台盖革计数器和一本《民防手册》。她颤抖着举起手中的棒球棍。',
+                choices: [
+                    { id: 'a', label: 'A', text: '安抚她', requiresInventory: 1 },
+                    { id: 'b', label: 'B', text: '攻击她' },
+                    { id: 'c', label: 'C', text: '无视她' }
+                ],
+                next: { a: 'ivan_ch5_a', b: 'ivan_ch5_b', c: 'ivan_ch5_c' },
+                effects: { radiation: 15 }
+            },
+            ivan_ch5_a: {
+                title: '第二章：荒野相遇',
+                time: '2026年4月26日 上午10:05',
+                distance: 500,
+                text: '你举起双手："我不是坏人。你需要帮助吗？"她的棒球棍放下了一些："我……我叫伊娃……我迷路了……"你注意到她嘴唇干裂，显然是严重脱水。你从口袋里拿出一瓶水和一块压缩饼干。"先吃点东西。"伊娃接过食物，贪婪地吃喝起来。"谢谢你……伊万大哥……"你看着她，心中泛起一丝复杂的情绪。"跟我来吧，我送你去撤离点。"',
+                choices: [{ id: 'go', label: '继续', text: '带上伊娃一起出发' }],
+                next: { go: 'ivan_ch6' },
+                effects: { inventory: -1, hasEva: true, radiation: 10 }
+            },
+            ivan_ch5_b: {
+                title: '第二章：荒野相遇',
+                time: '2026年4月26日 上午10:05',
+                distance: 500,
+                text: '你凭借曾参军过的身手轻易制服了她。',
+                choices: [
+                    { id: 'a', label: 'A', text: '放在路边' },
+                    { id: 'b', label: 'B', text: '抱上车', requiresInventory: 1 }
+                ],
+                next: { a: 'ivan_ch5_c', b: 'ivan_ch5_b_b' },
+                effects: { radiation: 10 }
+            },
+            ivan_ch5_b_b: {
+                title: '第二章：荒野相遇',
+                time: '2026年4月26日 上午10:10',
+                distance: 500,
+                text: '伊娃从座椅上惊醒过来："放开我，你这个强盗！""冷静一点，只是安全带，你解开就行了。"伊娃这才发现自己只是被安全带勒住了而已。"你是谁？你为什么要袭击我？"伊娃发现对方没有伤害自己后冷静了一些但仍然紧张地询问着。"先声明袭击别人的人是你，我只是正当防卫。我是伊万·索科洛夫，前防化兵，正在前往米尔格勒郊区。你又是谁？""我叫伊娃·柳德米拉，米尔格勒大学的学生。本来放假回家，没想到......"她的声音低了下去。你给了她一份物资。',
+                choices: [{ id: 'go', label: '继续', text: '带着伊娃一起出发' }],
+                next: { go: 'ivan_ch6' },
+                effects: { inventory: -1, hasEva: true, radiation: 10 }
+            },
+            ivan_ch5_c: {
+                title: '第二章：荒野相遇',
+                time: '2026年4月26日 上午10:05',
+                distance: 500,
+                text: '你装作没看到她直接上车出发。你看着后视镜中的女孩逐渐变远变小，最终彻底消失在视线中。',
+                choices: [{ id: 'go', label: '继续', text: '继续独自前进' }],
+                next: { go: 'ivan_ch6_alone' },
+                effects: { radiation: 10 }
+            },
+            ivan_ch6: {
+                title: '第二章：结伴同行',
+                time: '2026年4月26日 上午10:30',
+                distance: 500,
+                text: '"这是你的车吗？"伊娃看着你的卡车，眼神中带着一丝惊讶。"是的，"你打开车门，"上车吧。"伊娃笨拙地爬上车，手里依然紧紧攥着那本《民防手册》。你递给她一件备用的防护服："穿上这个，能减少辐射暴露。""谢谢......伊万先生。"伊娃轻声说。车厢里一片安静，只有引擎的轰鸣声。伊娃突然开口："伊万大哥，你......你为什么愿意带上我？"你目视前方："因为你需要帮助。""可是......我们素不相识......"你瞥了她一眼："在这种时候，每个人都需要帮助。"',
+                choices: [{ id: 'go', label: '继续', text: '继续向米尔格勒前进' }],
+                next: { go: 'ivan_ch7' },
+                effects: { radiation: 15 }
+            },
+            ivan_ch6_alone: {
+                title: '第二章：独自前行',
+                time: '2026年4月26日 上午10:30',
+                distance: 500,
+                text: '你继续独自前行。没有了伊娃的陪伴，卡车里显得格外安静。你打开收音机，试图寻找任何有用的信息，但只有沙沙的噪音。你看了看油量，还足够行驶大约100公里。',
+                choices: [{ id: 'go', label: '继续', text: '继续向米尔格勒前进' }],
+                next: { go: 'ivan_ch7' },
+                effects: { radiation: 15 }
+            },
+            ivan_ch7: {
+                title: '第二章：校车事件',
+                time: '2026年4月26日 中午12:00',
+                distance: 340,
+                text: '又开了一个半小时，伊娃突然抓住你的手臂："伊万大哥！那边......那边好像有人！"你看到前方有一辆撞在路灯上的房车。车窗碎裂，地上散落着书包和课本。几个小小的身影坐在车边，你停下车，仔细望去。最大的看起来也就十岁，最小的可能只有五六岁。他们都满脸是灰，有的在哭，有的已经吓傻了。驾驶座上躺着一位中年男性，头部有血迹，已经昏迷不醒。"伊娃，"你看着她，"我们得帮帮他们。"',
+                choices: [
+                    { id: 'a', label: 'A', text: '立即救援', requiresInventory: 6 },
+                    { id: 'b', label: 'B', text: '只带伊娃离开' },
+                    { id: 'c', label: 'C', text: '留下物资后离开', requiresInventory: 6 }
+                ],
+                next: { a: 'ivan_ch7_a', b: 'ivan_ch7_b', c: 'ivan_ch7_c' },
+                effects: { radiation: 25 }
+            },
+            ivan_ch7_a: {
+                title: '第二章：校车事件',
+                time: '2026年4月26日 中午12:15',
+                distance: 340,
+                text: '你没有犹豫，带着物资跳下车向校车跑去。"孩子们！别怕！我来救你们！"你爬上校车，小心翼翼地把受伤的驾驶员先抱出来。伊娃则帮忙安抚受惊的孩子们。十分钟后，所有孩子都被救上了车。"谢谢叔叔！""谢谢阿姨！"伊娃红了脸："我......我不是阿姨，我才22岁......"你看着穿着过大防化服的孩子们和伊娃对纠正称呼的样子忍不住笑了。',
+                choices: [{ id: 'go', label: '继续', text: '带着孩子们继续前进' }],
+                next: { go: 'ivan_ch7_a_2' },
+                effects: { inventory: -6, savedPeople: 6, hasKids: true, radiation: 30 }
+            },
+            ivan_ch7_a_2: {
+                title: '第二章：安德烈苏醒',
+                time: '2026年4月26日 下午5:00',
+                distance: 120,
+                text: '你带着伊娃和孩子们继续前进。车厢里很拥挤，但很安静。孩子们大多睡着了，先前失去意识的驾驶员醒了过来。他先向你表达了谢意，然后自我介绍："我叫安德烈，曾是一名汽修工。这些孩子和那辆报废的房车都是我在路边"顺"的。"你对此表示见怪不怪。"只是你们不得不和我一块去我父母家了。""无所谓，反正哪里都比监狱强，"安德烈说，"作为答谢，我可以帮你把这辆车改造成一个移动要塞，你觉得如何？材料和工具可以去我那里拿。"',
+                choices: [
+                    { id: 'a', label: 'A', text: '为什么不呢？（去安德烈的藏身处）' },
+                    { id: 'b', label: 'B', text: '不了，时间来不及（直接前往撤离点）' }
+                ],
+                next: { a: 'ivan_ch8_modify', b: 'ivan_ch8_direct' },
+                effects: { hasAndre: true, radiation: 35 }
+            },
+            ivan_ch7_b: {
+                title: '第二章：校车事件',
+                time: '2026年4月26日 中午12:05',
+                distance: 340,
+                text: '你看着翻倒的校车，又看了看满脸期待的伊娃。"伊万大哥......"伊娃小声说，"我们是不是应该......""不行，"你打断她，"我们救不了他们。"你踩下油门，卡车轰鸣着从校车旁边驶过。伊娃回头望着渐渐远去的房车，眼眶红了。"可是......可是他们还那么小......""我说了，救不了。"你的声音有些生硬，"我们两个人，加一箱油，不可能带着六个孩子穿越辐射区。"',
+                choices: [{ id: 'go', label: '继续', text: '继续向米尔格勒前进' }],
+                next: { go: 'ivan_ch8_alone' },
+                effects: { radiation: 20 }
+            },
+            ivan_ch7_c: {
+                title: '第二章：校车事件',
+                time: '2026年4月26日 中午12:10',
+                distance: 340,
+                text: '你停下车，但没有熄火。"等等，"你对伊娃说，"我去一下。"你从后备箱里拿出几瓶水和一些压缩饼干以及一些抗辐射药，然后向房车跑去。"叔叔！救救我们！"孩子们看到你，眼睛都亮了。"别怕，"你把食物和水递给他们，"这些你们等会记得吃了。很快就会有人来救你们的。""叔叔你要走吗？"小女孩哭着问。"我......我还有很重要的事，"你只能这样说，"你们要坚强，救援很快就来了。"你转身离开，不敢回头看孩子们的表情。回到车上，伊娃看着你："我们......这样做对吗？"你没有回答，只是踩下油门，继续前进。',
+                choices: [{ id: 'go', label: '继续', text: '继续向米尔格勒前进' }],
+                next: { go: 'ivan_ch8_alone' },
+                effects: { inventory: -6, radiation: 20 }
+            },
+            ivan_ch8_modify: {
+                title: '第三章：改造卡车',
+                time: '2026年4月26日 晚上7:00',
+                distance: 160,
+                text: '你跟着安德烈的指引到达了他曾在的社区。"奇怪了，我记得我的工具都存在这里了，肯定是那帮可恶的小偷。"安德烈抱怨道。你突然想起来先前有人给过你工具，就在车厢里面。安德烈确实是一名出色的汽修工，他对那些工具得心应手。伊娃执意要帮你们，你必须承认有她在，效率确实高了不少。三个小时后，你看着加装了铅版的卡车，感觉心里踏实了一些。',
+                choices: [{ id: 'go', label: '继续', text: '休息一晚后继续出发' }],
+                next: { go: 'ivan_ch9_home' },
+                effects: { didModifyCar: true, radiation: 40 }
+            },
+            ivan_ch8_direct: {
+                title: '第三章：继续前进',
+                time: '2026年4月26日 下午5:30',
+                distance: 120,
+                text: '你谢绝了安德烈的好意。"你说得对，"安德烈看上去有些失望但又随即表示，"我可以帮你开车，不用担心我的伤势。"你盛情难却，只好答应了下来。伊娃靠在车窗边，看着窗外不断闪过的废墟。你的辐射检测仪发出微弱的咔嗒声——0.05毫西弗/小时，比之前高了一点，但还在安全范围内。',
+                choices: [{ id: 'go', label: '继续', text: '休息一晚后继续出发' }],
+                next: { go: 'ivan_ch9_home' },
+                effects: { radiation: 40 }
+            },
+            ivan_ch8_alone: {
+                title: '第三章：独自前行',
+                time: '2026年4月26日 下午5:00',
+                distance: 120,
+                text: '你继续独自（或和伊娃一起）前进。卡车里很安静，只有引擎的轰鸣声和辐射检测仪的微弱咔嗒声。窗外的景象越来越荒芜，偶尔能看到废弃的车辆和散落的行李。',
+                choices: [{ id: 'go', label: '继续', text: '休息一晚后继续出发' }],
+                next: { go: 'ivan_ch9_home' },
+                effects: { radiation: 40 }
+            },
+            ivan_ch9_home: {
+                title: '第四章：回家',
+                time: '2026年4月27日 下午3:00',
+                distance: 0,
+                text: '你驾车驶入熟悉的街道。这里曾经是一条安静的居民区街道，两旁种满了白桦树。而现在，街道上散落着各种杂物，有些房屋的窗户已经破碎。但你看到了——你的家。那栋熟悉的两层小楼，父母正站在院子里焦急地张望。"爸！妈！"你大声喊道。母亲看到你，眼泪立刻流了下来："伊万！你真的来了！"你跳下车，快步跑过去，紧紧抱住他们。"我回来了，"你声音哽咽，"我来接你们了。"父亲拍了拍你的肩膀："好儿子......""我们必须立刻离开，等等那是……"要下雨了，"猎人出身的父亲看着天空说到。你知道这意味着什么——黑雨，辐射性雨，致死率高。',
+                choices: [
+                    { id: 'a', label: 'A', text: '直接撤离' },
+                    { id: 'b', label: 'B', text: '留在家中建立临时安全屋' }
+                ],
+                next: { a: 'ivan_ending_evac_route', b: 'ivan_ending_shelter_route' }
+            },
+            ivan_ending_evac_route: {
+                title: '结局判定',
+                time: '2026年4月27日 下午3:00',
+                distance: 0,
+                text: '你决定直接撤离。',
+                nextScene: function() {
+                    if (gameState.hasTools && gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_19';
+                    } else if (gameState.hasTools && gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_20';
+                    } else if (!gameState.hasTools && gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_23';
+                    } else if (!gameState.hasTools && gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_24';
+                    } else if (gameState.hasTools && !gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_10';
+                    } else if (gameState.hasTools && !gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_12';
+                    } else if (!gameState.hasTools && !gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_13';
+                    } else if (!gameState.hasTools && !gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_15';
+                    } else if (gameState.hasTools && gameState.hasEva && !gameState.hasAndre) {
+                        return 'ivan_ending_evac_eva';
+                    } else if (!gameState.hasTools && gameState.hasEva && !gameState.hasAndre) {
+                        return 'ivan_ending_evac_eva_no_tool';
+                    } else {
+                        return 'ivan_ending_evac_simple';
+                    }
+                }
+            },
+            ivan_ending_shelter_route: {
+                title: '结局判定',
+                time: '2026年4月27日 下午3:00',
+                distance: 0,
+                text: '你决定建立安全屋。',
+                nextScene: function() {
+                    if (gameState.hasTools && gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_17';
+                    } else if (gameState.hasTools && gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_18';
+                    } else if (!gameState.hasTools && gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_21';
+                    } else if (!gameState.hasTools && gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_22';
+                    } else if (gameState.hasTools && !gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_11';
+                    } else if (gameState.hasTools && !gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_13_shelter';
+                    } else if (!gameState.hasTools && !gameState.hasEva && gameState.hasAndre && gameState.didModifyCar) {
+                        return 'ivan_ending_14';
+                    } else if (!gameState.hasTools && !gameState.hasEva && gameState.hasAndre && !gameState.didModifyCar) {
+                        return 'ivan_ending_16';
+                    } else if (gameState.hasTools && gameState.hasEva && !gameState.hasAndre) {
+                        return 'ivan_ending_shelter_eva';
+                    } else if (!gameState.hasTools && gameState.hasEva && !gameState.hasAndre) {
+                        return 'ivan_ending_shelter_eva_no_tool';
+                    } else {
+                        return 'ivan_ending_shelter_simple';
+                    }
+                }
+            },
+            ivan_ending_17: {
+                title: '结局：英雄',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '你们花费了两个小时改造地下室，好在有工具，整个地下室被铅版牢牢锁住。下午5:30，你在父母、安德烈和伊娃的帮助下把地下室改成了坚固的安全屋。伊娃用多余的物资将一些你忽视的缝隙堵了起来。你们在地下室等待着黑雨的到来，你看着辐射检测仪——20毫西弗/小时，不安全但也不致命。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。你们及时接受了治疗，辐射造成危害很小，几乎没有后遗症。同时你因为救了很多人而被人们称为英雄。',
+                ending: { type: '好结局', title: '英雄归来', text: '你不仅拯救了家人，还救了许多无辜的生命。你是真正的英雄。' },
+                effects: { radiation: 20 }
+            },
+            ivan_ending_18: {
+                title: '结局：平安',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '你们花费了两个小时改造地下室。好在有工具，你和安德烈用工具重新加固了一下地下室。下午5:30，你在父母、安德烈和伊娃的帮助下把地下室整成了简易的安全屋。你们用胶带把地下室所有缝隙都粘住，伊娃用多余的物资将一些你忽视的缝隙堵了起来。你们在地下室等待着黑雨的到来，你看着辐射检测仪——200毫西弗/小时。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。你们及时接受了治疗，辐射造成了一定危害，每个人都有轻微的后遗症。但对于你来说，只要和家人在一起就没有什么问题。',
+                ending: { type: '普通结局', title: '平安是福', text: '虽然留下了一些后遗症，但全家人都平安无事。' },
+                effects: { radiation: 200 }
+            },
+            ivan_ending_19: {
+                title: '结局：成功撤离',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。看着经过了完整改造加装了铅版的老伙计，伊娃用多余的物资将一些你忽视的缝隙堵了起来。你不确定它和身上的防化服能抵御多少辐射，你只能在心中不断祈祷。3小时后黑雨如期而至，这似乎和普通的暴雨一样，至少看起来是这样，但你心里很清楚，这是上帝的眼泪。暴风从卡车外吹过，犹如死神的尖啸声。你的辐射检测仪发出剧烈的咔嗒声——30毫西弗/小时，不安全但也不致命。五小时后你们到达了撤离点，对你们来说只要一家人在一起就不会有事。',
+                ending: { type: '好结局', title: '全家平安', text: '你成功带着家人撤离，每个人都平安无事。' },
+                effects: { radiation: 30 }
+            },
+            ivan_ending_20: {
+                title: '结局：辐射后遗症',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。看着陪伴了自己一路的老伙计，你不确定它和身上的防化服能抵御多少辐射，你只能在心中不断祈祷。伊娃用多余的物资填补了缝隙。3小时后黑雨如期而至，这似乎和普通的暴雨一样，至少看起来是这样，但你心里很清楚，这是上帝的眼泪。暴风从卡车外吹过，犹如死神的尖啸声。你的辐射检测仪发出剧烈的咔嗒声——300毫西弗/小时，很危险的数值。五小时后你们到达了撤离点，你们查出了一些严重的辐射病，但是你们及时接受了治疗。对你来说，只要一家人在一起就不会有事。',
+                ending: { type: '普通结局', title: '劫后余生', text: '虽然受到了严重辐射，但及时的治疗让你们活了下来。' },
+                effects: { radiation: 300 }
+            },
+            ivan_ending_21: {
+                title: '结局：简易安全屋',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '你们花费了两个小时改造地下室。下午5:30，你在父母、安德烈和伊娃的帮助下把地下室整成了简易的安全屋。你们用胶带把地下室所有缝隙都粘住，伊娃用多余的物资将一些你忽视的缝隙堵了起来。你们在地下室等待着黑雨的到来，你看着辐射检测仪——50毫西弗/小时，不安全。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。尽管你们有一些轻微的辐射后遗症，但及时接受治疗的你们在三个月内相继出院。',
+                ending: { type: '普通结局', title: '劫后余生', text: '虽然经历了危险，但最终都平安出院。' },
+                effects: { radiation: 50 }
+            },
+            ivan_ending_22: {
+                title: '结局：严重后遗症',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '你们花费了两个小时改造地下室。下午5:30，你在父母、安德烈和伊娃的帮助下把地下室整成了简易的安全屋。你们用胶带把地下室所有缝隙都粘住，伊娃用多余的物资将一些你忽视的缝隙堵了起来。你们在地下室等待着黑雨的到来，你看着辐射检测仪——300毫西弗/小时，不安全。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。你们及时接受了治疗，辐射造成了大量危害，每个人都有严重的后遗症。',
+                ending: { type: '普通结局', title: '沉重的代价', text: '虽然活了下来，但严重的辐射后遗症将伴随你们一生。' },
+                effects: { radiation: 300 }
+            },
+            ivan_ending_23: {
+                title: '结局：有惊无险',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。看着只是加了一些铅版的老伙计，你不确定它和身上的防化服能抵御多少辐射，你只能在心中不断祈祷。3小时后黑雨如期而至，这似乎和普通的暴雨一样，至少看起来是这样，但你心里很清楚，这是上帝的眼泪。暴风从卡车外吹过，犹如死神的尖啸声。你的辐射检测仪发出剧烈的咔嗒声——80毫西弗/小时，不安全但也不致命。五小时后你们到达了撤离点，对你们来说只要一家人在一起就不会有事。你们及时接受了治疗，辐射只造成了一定危害，每个人都有不同的后遗症。',
+                ending: { type: '普通结局', title: '有惊无险', text: '虽然受到了辐射，但你们都活了下来。' },
+                effects: { radiation: 80 }
+            },
+            ivan_ending_24: {
+                title: '结局：悲剧',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。看着陪伴了自己一路的老伙计，你不确定它和身上的防化服能抵御多少辐射，你只能在心中不断祈祷。3小时后黑雨如期而至，这似乎和普通的暴雨一样，至少看起来是这样，但你心里很清楚，这是上帝的眼泪。暴风从卡车外吹过，犹如死神的尖啸声。你的辐射检测仪发出剧烈的咔嗒声——500毫西弗/小时。五小时后你们到达了撤离点，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。尽管你们及时接受了治疗，但辐射造成危害太大，三个月内你们相继离世。',
+                ending: { type: '死亡结局', title: '迟来的团聚', text: '你们最终还是没能战胜辐射，一家人在三个月内相继离世。' },
+                effects: { radiation: 500 }
+            },
+            ivan_ending_10: {
+                title: '结局：兄弟情',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。看着经过了完整改造加装了铅版的老伙计，你不确定它和身上的防化服能抵御多少辐射，你只能在心中不断祈祷。3小时后黑雨如期而至，这似乎和普通的暴雨一样，至少看起来是这样，但你心里很清楚，这是上帝的眼泪。暴风从卡车外吹过，犹如死神的尖啸声。你的辐射检测仪发出咔嗒声——80毫西弗/小时，不安全但不致命。五小时后你们到达了撤离点，虽然你们查出了一些辐射后遗症，但是你们及时接受了治疗。对你们来说，只要一家人在一起就不会有事。',
+                ending: { type: '普通结局', title: '兄弟情深', text: '你和安德烈一起度过了难关，成为了真正的兄弟。' },
+                effects: { radiation: 80 }
+            },
+            ivan_ending_11: {
+                title: '结局：地下室避难',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '你们花费了两个小时改造地下室，好在有工具。整个地下室被铅版牢牢锁住，但仍有辐射从一些你没有注意到的缝隙中透了进来。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。你们及时接受了治疗，辐射造成的危害不大。同时你和安德烈因为救出了五个孩子而被人们称为英雄。',
+                ending: { type: '好结局', title: '平民英雄', text: '你和安德烈成为了人们眼中的英雄。' },
+                effects: { radiation: 100 }
+            },
+            ivan_ending_12: {
+                title: '结局：辐射病',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午3点到家。三小时后黑雨如期而至，你们尽可能地填补了车上的缝隙，但是辐射依旧透了进来——50，100，200，500。你看着辐射量不断加剧。尽管你们最终抵达了撤离点，但辐射造成的后遗症导致你们一个月内先后离世。',
+                ending: { type: '死亡结局', title: '辐射之殇', text: '辐射最终还是夺走了你们的生命。' },
+                effects: { radiation: 500 }
+            },
+            ivan_ending_13: {
+                title: '结局：必要牺牲',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午5点到家。你看着只是加装了一些铅版的老伙计，你不确定它和身上的防化服能抵御多少辐射。三小时后黑雨如期而至，辐射检测仪发出咔嗒声——150毫西弗/小时，不安全有一定致命性。2小时后你们到达了撤离点，尽管你们及时接受了治疗，但长期暴露在大量辐射中还是让你们确诊了一些辐射后遗症。无论如何，至少你救出了你的父母和那些孩子。',
+                ending: { type: '普通结局', title: '必要牺牲', text: '你做出了必要的牺牲，拯救了更多的生命。' },
+                effects: { radiation: 150 }
+            },
+            ivan_ending_13_shelter: {
+                title: '结局：地下室的坚守',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '27日下午3点到家。你们尽可能地填补了地下室缝隙，但是辐射依旧透了进来——50，100，200，500。你看着辐射量不断加剧，最终你们在地下室失去了意识。',
+                ending: { type: '死亡结局', title: '地下室的终结', text: '你们没能抵御住辐射的侵袭。' },
+                effects: { radiation: 500 }
+            },
+            ivan_ending_14: {
+                title: '结局：简易防护',
+                time: '2026年4月28日 上午8:00',
+                distance: 0,
+                text: '27日下午5点到家。你们花费了两个小时改造地下室，整个地下室被铅版简易地盖住，但仍有雨水携带着辐射从缝隙中透了进来。测试器上的数字不断升高直到80。第二天你们立刻开车离开了这里，在撤离点，你和安德烈把孩子们交给了当地驻军，希望能找到他们的家人。尽管你们及时接受了治疗，但辐射造成的危害太大，六个月内你们相继离世。',
+                ending: { type: '死亡结局', title: '迟来的救赎', text: '虽然拯救了孩子们，但你们最终还是没能活下来。' },
+                effects: { radiation: 80 }
+            },
+            ivan_ending_15: {
+                title: '结局：绝望',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '27日下午5点到家。你们尽可能地填补了车上的缝隙，但是辐射依旧透了进来——50，100，500。你看着辐射量不断加剧，最终在车上失去了意识。',
+                ending: { type: '死亡结局', title: '绝望的旅途', text: '你们没能到达撤离点，永远地留在了路上。' },
+                effects: { radiation: 500 }
+            },
+            ivan_ending_16: {
+                title: '结局：地下室的末日',
+                time: '2026年4月27日 下午6:00',
+                distance: 0,
+                text: '27日下午5点到家。你们尽可能地填补了地下室缝隙，但是辐射依旧透了进来——50，100，200，500。你看着辐射量不断加剧，最终你们在地下室失去了意识。',
+                ending: { type: '死亡结局', title: '最后的避难所', text: '地下室没能成为你们的庇护所。' },
+                effects: { radiation: 500 }
+            },
+            ivan_ending_evac_eva: {
+                title: '结局：伊娃同行撤离',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '你和伊娃带着父母撤离。黑雨中，你们的卡车艰难前行。最终到达撤离点时，你们都受到了一定程度的辐射，但及时的治疗让你们活了下来。你和伊娃在灾难中建立了深厚的友谊。',
+                ending: { type: '普通结局', title: '患难之交', text: '你和伊娃一起度过了这场灾难。' },
+                effects: { radiation: 150 }
+            },
+            ivan_ending_evac_eva_no_tool: {
+                title: '结局：悲剧的结局',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '你和伊娃带着父母撤离。没有工具的保护，黑雨带来的辐射穿透了一切。尽管到达了撤离点，但父母的伤势太重，最终还是没能挺过来。悲痛欲绝的你选择了自尽。',
+                ending: { type: '死亡结局', title: '绝望的选择', text: '失去家人的痛苦让你无法继续活下去。' },
+                effects: { radiation: 400 }
+            },
+            ivan_ending_evac_simple: {
+                title: '结局：独自撤离',
+                time: '2026年4月27日 晚上8:00',
+                distance: 0,
+                text: '你独自带着父母撤离。黑雨中，你们艰难前行。最终到达撤离点时，父母已经奄奄一息。你听从了父亲的遗嘱，决定好好活下去，尽管你知道自己也撑不了多久。',
+                ending: { type: '普通结局', title: '独活', text: '你活了下来，但心中永远留下了遗憾。' },
+                effects: { radiation: 300 }
+            },
+            ivan_ending_shelter_eva: {
+                title: '结局：伊娃同行安全屋',
+                time: '2026年4月28日 上午8:00',
+                distance: 0,
+                text: '你和伊娃一起建立了安全屋。在她的帮助下，你们成功抵御了黑雨的侵袭。第二天，你们安全撤离。虽然有一些辐射后遗症，但你们都活了下来。',
+                ending: { type: '好结局', title: '携手共度', text: '你和伊娃一起度过了这场灾难。' },
+                effects: { radiation: 80 }
+            },
+            ivan_ending_shelter_eva_no_tool: {
+                title: '结局：伊娃同行（无工具）',
+                time: '2026年4月28日 上午8:00',
+                distance: 0,
+                text: '你和伊娃一起建立了简易的安全屋。没有工具的帮助，辐射还是穿透了进来。你们到达撤离点时，父母已经病得很重。在伊娃的劝说下，你慢慢从悲痛中走了出来。',
+                ending: { type: '普通结局', title: '悲痛过后', text: '虽然失去了父母，但你选择继续活下去。' },
+                effects: { radiation: 250 }
+            },
+            ivan_ending_shelter_simple: {
+                title: '结局：独自坚守',
+                time: '2026年4月28日 上午8:00',
+                distance: 0,
+                text: '你独自建立了简易的安全屋。黑雨过后，你带着父母撤离。虽然父母最终还是因辐射去世，但你选择继续活下去，完成他们的遗愿。',
+                ending: { type: '普通结局', title: '独自前行', text: '你独自踏上了新的旅程。' },
+                effects: { radiation: 200 }
+            },
+            eva_ch1: {
+                title: '第一章：警报惊魂・黑暗降临',
+                time: '2026年4月26日 凌晨1:23',
+                text: '【开场动画：视频通话突然卡顿，防空警报撕裂夜空，灯光骤灭，手机屏幕变成灰屏，伊娃喘息声放大】\n\n漆黑一片的卧室里，只有窗外远处模糊的红光。空气里飘着淡淡的焦糊味，窗外传来邻居的尖叫、汽车鸣笛和爆炸声。你手边只有：旧地图、破旧《民防手册》、没电的手机、桌上半瓶水。\n\n伊娃（颤抖，攥紧地图和手册）："是战争…… 真的来了…… 停电、断网，和爸爸说的一模一样…… 我该怎么办？"',
+                choices: [
+                    { id: 'a', label: 'A', text: '先去窗边看外面发生了什么' },
+                    { id: 'b', label: 'B', text: '立刻关闭门窗，翻找应急物资' },
+                    { id: 'c', label: 'C', text: '尝试重启手机联系哥哥' }
+                ],
+                next: { a: 'eva_ch1_a', b: 'eva_ch1_b', c: 'eva_ch1_c' },
+                setFlags: { protagonist: 'eva' }
+            },
+            eva_ch1_a: {
+                title: '第一章：警报惊魂',
+                time: '2026年4月26日 凌晨1:35',
+                text: '你摸到窗边，拉开窗帘——远处工业区方向腾起黑色烟柱，天空有战机低空掠过的轰鸣，楼下有人疯狂砸车、抢夺物资。突然，一道强光闪过地平线，电磁脉冲余波让你眼前一黑，手机彻底报废。\n\n你想起爷爷处理核泄露时留下的应急箱，摸黑打开衣柜最底层——找到老式手电筒（带电池）、半块压缩饼干、曾祖母留下的旧防毒面罩、辐射检测笔以及爷爷当年留下来的应急箱。\n\n获得道具：手电筒、压缩饼干×1、简易防毒面罩、辐射检测笔\n应急物资+1\n\n"还好…… 爷爷的东西还在，辐射检测笔…… 千万不要响……"\n\n"爷爷的应急箱…… 求你了……"\n\n啪嗒——扣环弹开。\n\n老式手电筒光柱刺破黑暗，你摸到了橡胶防毒面罩、针式辐射检测笔、两块压缩饼干、一小瓶碘伏，还有一张泛黄的老照片：曾祖母穿着787女子轰炸机团制服，眼神坚定。\n\n就在这时，辐射检测笔发出尖锐的一长声——红色警示灯亮起。\n\n伊娃（声音发颤）："中度辐射…… 已经飘过来了！不能再待了！"\n\n你抓起地图与手册，面罩扣在脸上，推开家门。',
+                choices: [{ id: 'go', label: '继续', text: '前往楼道' }],
+                next: { go: 'eva_ch2' },
+                effects: { inventory: 3, radiation: 35 }
+            },
+            eva_ch1_b: {
+                title: '第一章：警报惊魂',
+                time: '2026年4月26日 凌晨1:35',
+                text: '你想起爷爷处理核泄露时留下的应急箱，摸黑打开衣柜最底层——找到老式手电筒（带电池）、半块压缩饼干、曾祖母留下的旧防毒面罩、辐射检测笔以及爷爷当年留下来的应急箱。\n\n获得道具：手电筒、压缩饼干×1、简易防毒面罩、辐射检测笔\n应急物资+1\n\n"还好…… 爷爷的东西还在，辐射检测笔…… 千万不要响……"\n\n"爷爷的应急箱…… 求你了……"\n\n啪嗒——扣环弹开。\n\n老式手电筒光柱刺破黑暗，你摸到了橡胶防毒面罩、针式辐射检测笔、两块压缩饼干、一小瓶碘伏，还有一张泛黄的老照片：曾祖母穿着787女子轰炸机团制服，眼神坚定。\n\n你抓起地图与手册，面罩扣在脸上，推开家门。\n\n楼道场景：\n浓烟滚滚，煤灰像黑雪一样落下，墙壁剥落，邻居们哭喊着拥挤在楼梯口。有人摔倒，有人抢夺别人的背包，电梯间传来金属扭曲的巨响。\n\n《民防手册》从手中滑落，正好翻开一页：\n【核尘降临：① 避开风口 ② 不接触裸露水源 ③ 优先进入深度地下掩体 ④ 远离爆炸源与工业区】\n0～50：安全 | 50～100：轻度暴露（咳嗽、乏力）\n100～200：中度辐射（头晕、恶心、皮肤刺痛）\n200～300：重度辐射（呕吐、出血、不可逆损伤）\n300+：致命（短时间内意识丧失、器官衰竭）\n\n地图上，曾祖母标注的【旧防空洞】被红圈标出，位于城西郊外，距离你家32公里。\n\n你又继续整理收集了一些衣服，希望这些东西能帮到自己。',
+                choices: [{ id: 'go', label: '继续', text: '离开家门' }],
+                next: { go: 'eva_ch2' },
+                effects: { inventory: 4, radiation: 15 }
+            },
+            eva_ch1_c: {
+                title: '第一章：警报惊魂',
+                time: '2026年4月26日 凌晨1:35',
+                text: '反复按电源键，屏幕毫无反应，连紧急呼叫都无法拨出。窗外警报声越来越尖锐，远处传来爆炸声。\n\n"没用的…… 全完了…… 哥哥你在哪……"\n\n你想起爷爷处理核泄露时留下的应急箱，摸黑打开衣柜最底层——找到老式手电筒（带电池）、半块压缩饼干、曾祖母留下的旧防毒面罩、辐射检测笔以及爷爷当年留下来的应急箱。\n\n获得道具：手电筒、压缩饼干×1、简易防毒面罩、辐射检测笔\n\n你凭着儿时记忆，在衣柜最深处拖出那个锈迹斑斑的铁箱。\n\n"爷爷的应急箱…… 求你了……"\n\n啪嗒——扣环弹开。\n\n老式手电筒光柱刺破黑暗，你摸到了橡胶防毒面罩、针式辐射检测笔、两块压缩饼干、一小瓶碘伏，还有一张泛黄的老照片：曾祖母穿着787女子轰炸机团制服，眼神坚定。\n\n你抓起地图与手册，面罩扣在脸上，推开家门。\n\n楼道场景：\n浓烟滚滚，煤灰像黑雪一样落下，墙壁剥落，邻居们哭喊着拥挤在楼梯口。有人摔倒，有人抢夺别人的背包，电梯间传来金属扭曲的巨响。\n\n《民防手册》从手中滑落，正好翻开一页：\n【核尘降临：① 避开风口 ② 不接触裸露水源 ③ 优先进入深度地下掩体 ④ 远离爆炸源与工业区】\n0～50：安全 | 50～100：轻度暴露（咳嗽、乏力）\n100～200：中度辐射（头晕、恶心、皮肤刺痛）\n200～300：重度辐射（呕吐、出血、不可逆损伤）\n300+：致命（短时间内意识丧失、器官衰竭）\n\n地图上，曾祖母标注的【旧防空洞】被红圈标出，位于城西郊外，距离你家32公里。',
+                choices: [{ id: 'go', label: '继续', text: '离开家门' }],
+                next: { go: 'eva_ch2' },
+                effects: { inventory: 3, radiation: 30 }
+            },
+            eva_ch2: {
+                title: '第二章：家门之外・生死抉择',
+                time: '2026年4月26日 凌晨1:40',
+                text: '楼道里全是黑烟，有人哭喊着往下跑，楼梯间有碎石掉落，电梯停运。你手里攥着地图，手册上写着："核危机→远离高层建筑、远离工业区、寻找地下掩体、优先防毒防辐射"。',
+                choices: [
+                    { id: 'a', label: 'A', text: '跟着人群往街道跑' },
+                    { id: 'b', label: 'B', text: '按照地图往城郊方向走' },
+                    { id: 'c', label: 'C', text: '回家拿更多衣服/物品（犹豫回头）' }
+                ],
+                next: { a: 'eva_death1', b: 'eva_ch3', c: 'eva_death2' },
+                effects: { radiation: 30 }
+            },
+            eva_death1: {
+                title: '结局：混乱',
+                time: '2026年4月26日 凌晨1:45',
+                text: '浓烟呛得你咳嗽，人群推搡中你摔倒了。街道上有人抢夺便利店，车辆相撞起火。你的求救声被淹没在混乱中，最终失去了意识。',
+                ending: { type: '死亡结局', title: '混乱中的牺牲', text: '你在混乱中失去了生命，成为了这场灾难的又一个受害者。' }
+            },
+            eva_death2: {
+                title: '结局：犹豫',
+                time: '2026年4月26日 凌晨1:45',
+                text: '你回头想拿厚衣服，刚迈进卧室，第二次剧烈爆炸响起，窗户玻璃震碎，碎片划过你的脖子。你捂着伤口，但血液依旧不断流出，最终失去了意识。',
+                ending: { type: '死亡结局', title: '犹豫的代价', text: '你的犹豫让你付出了生命的代价。在末日中，每一个决定都至关重要。' }
+            },
+            eva_ch3: {
+                title: '第三章：辐射阴影・信念拷问',
+                time: '2026年4月26日 凌晨2:00',
+                text: '你打开手电筒，对照旧地图往楼道另一侧走，避开拥挤的主楼梯。走到一楼后门，发现小巷相对安静，但远处工业区的烟越来越浓。\n\n地图上标注的【旧防空洞】距离这里12公里，是787女子轰炸机团当年的备用掩体。\n地图上标注的【应急避难所】距离这里5公里，是临时安置场所，可能有些物资。\n\n伊娃独白："曾祖母的掩体…… 应该能防辐射…… 对，往那里走！"',
+                choices: [
+                    { id: 'a', label: 'A', text: '坚持往防空洞走' },
+                    { id: 'b', label: 'B', text: '原地躲藏' },
+                    { id: 'c', label: 'C', text: '查看周围再做出决定' }
+                ],
+                next: { a: 'eva_ch4', b: 'eva_hide', c: 'eva_ch3_c' },
+                effects: { radiation: 30 }
+            },
+            eva_ch3_c: {
+                title: '第三章：辐射阴影',
+                time: '2026年4月26日 凌晨2:00',
+                text: '你冷静下来后看着地图与人群奔跑的方向，如果跟随人群的话很可能会发生踩踏事故。地图上有标记一些地点包括应急避难设施以及曾祖母的掩体。\n\n你快速记住了路线，通过小巷到达了地图标注的三岔路口。',
+                choices: [{ id: 'go', label: '继续', text: '抵达三岔路口' }],
+                next: { go: 'eva_ch4' },
+                effects: { radiation: 60 }
+            },
+            eva_hide: {
+                title: '第三章：原地躲藏',
+                time: '2026年4月26日 凌晨2:30',
+                text: '你躲进楼道角落瑟瑟发抖，辐射值持续上升。盖格计数器显示30毫西弗，不能继续待在这里了。',
+                choices: [
+                    { id: 'a', label: 'A', text: '继续躲藏' },
+                    { id: 'b', label: 'B', text: '离开去其他地方' }
+                ],
+                next: { a: 'eva_endure', b: 'eva_ch4' },
+                effects: { radiation: 30 }
+            },
+            eva_endure: {
+                title: '结局：苟延残喘',
+                time: '2026年4月26日 凌晨5:30',
+                text: '你选择继续躲藏，等待救援队的到来。三天后，救援队在废墟中发现了你。虽然你活了下来，但辐射带来了严重的后遗症，你的身体撑不了多久了。',
+                ending: { type: '一般结局', title: '苟延残喘', text: '你活了下来，但付出了沉重的代价。辐射的后遗症将伴随你的余生。' }
+            },
+            eva_ch4: {
+                title: '第四章：关键道具・生存希望',
+                time: '2026年4月26日 凌晨3:00',
+                text: '（你抵达地图标注的三岔路口，面前出现三个选择）',
+                choices: [
+                    { id: 'a', label: 'A', text: '进入地下地铁站（一级掩体）• 优势：防辐射、防爆炸 • 风险：人多拥挤、可能断氧、混乱' },
+                    { id: 'b', label: 'B', text: '沿公路往城郊（防空洞方向）• 优势：人少、军人世家专属掩体、辐射较低 • 风险：路程远、露天暴露、需对抗恐惧' }
+                ],
+                next: { a: 'eva_subway', b: 'eva_road' }
+            },
+            eva_subway: {
+                title: '第四章：地铁站',
+                time: '2026年4月26日 凌晨3:30',
+                text: '你想起来："奶奶救援辐射人员时说，地下掩体最安全，但人多可能出事……"你进去后发现里面充斥着惊慌、恐惧以及混乱的气息。漆黑一片的地铁站中，没人知道会发生什么。你撞到了前方的墙壁，慢慢坐了下来。空间越来越少，人群越来越多。先来的人和后来的人逐渐爆发了争执甚至是战斗。你看着眼前的一切，必须做出一个选择：',
+                choices: [
+                    { id: 'a', label: 'A', text: '建立防线，禁止其他人进入' },
+                    { id: 'b', label: 'B', text: '趁着混乱跑出去' },
+                    { id: 'c', label: 'C', text: '说服先来的人接纳后来者们' }
+                ],
+                next: { a: 'eva_defend', b: 'eva_road', c: 'eva_persuade' }
+            },
+            eva_defend: {
+                title: '结局：防线',
+                time: '2026年4月26日 凌晨4:00',
+                text: '你和其他早到的人建立了防线，拒绝任何后来者入内。你看着一个个试图进入的人被拒绝，包括一个抱着婴儿的母亲。三天后救援队到来时，地铁站门口堆满了尸体。你无法原谅自己，六个月后选择了结束生命。',
+                ending: { type: '悲剧结局', title: '无法原谅', text: '你活了下来，但内心的谴责让你无法继续生活。在末日中，生存的代价有时比死亡更沉重。' }
+            },
+            eva_persuade: {
+                title: '结局：无用的劝解',
+                time: '2026年4月26日 凌晨4:00',
+                text: '你试着说服其他人接纳后来者，但没有人愿意拿自己的生命去冒险。外面的人不断往里面冲，你被撞倒在地，人们互相挤压，你失去了意识。',
+                ending: { type: '死亡结局', title: '无用的劝解', text: '你的善意没有换来好的结果，在混乱中你失去了生命。' }
+            },
+            eva_road: {
+                title: '第四章：公路惊魂',
+                time: '2026年4月26日 上午8:00',
+                text: '【躲避还是战斗？】\n\n你沿着这条道路走了两个多小时，一路都在躲避暴乱的人群。你在路上已经见到三次人们冲进无人的商店疯狂地抢夺物资。你只能沿着小道慢慢前进，路上漆黑一片，你只能根据记忆慢慢往前行进。路边报废的车辆和倒塌的建筑物把一些公路给堵上了，你只能选择绕道而行。\n\n"见鬼！"前面出现了五个人，戴着恐怖电影中反派的面具，手中拿着棒球棍之类的冷兵器。你立刻躲了起来，不巧的是他们正朝着你的方向缓缓走来。',
+                choices: [
+                    { id: 'a', label: 'A', text: '压低呼吸，继续躲藏' },
+                    { id: 'b', label: 'B', text: '与他们交涉' },
+                    { id: 'c', label: 'C', text: '战斗（从背后偷袭）' }
+                ],
+                next: { a: 'eva_captured', b: 'eva_captured', c: 'eva_captured' },
+                effects: { radiation: 80 }
+            },
+            eva_run: {
+                title: '结局：希望',
+                time: '2026年4月26日 上午9:00',
+                text: '你转身就跑，幸运地甩掉了他们。继续前行，你终于看到了防空洞的入口。虽然经历了无数困难，但你活了下来，找到了安全的避难所。',
+                ending: { type: '好结局', title: '希望', text: '你成功抵达了防空洞，虽然过程艰难，但你活了下来。在这个末日世界里，活着就是最大的胜利。' }
+            },
+            eva_captured: {
+                title: '第六章：绑架',
+                time: '2026年4月26日 上午10:00',
+                text: '【第六章：绑架】\n\n你再次醒来时，发现自己被人绑到了一个废弃的大仓库中，自己的包被随意地扔在地上。你认出了这里，也认出了他们手腕上的刺青——这是一个街头帮派的聚集地，里面全是一些不成熟的青少年。\n\n对方发现你醒过来之后，立刻凑了上来："你知道我们是谁吗？"\n\n为首的青年用他稚嫩的嗓音问道。\n\n"我更好奇你们知道这样做是犯罪吗？"你反问道。\n\n"犯罪？"对方仿佛听到了一个笑话，不屑地说道，"你看现在这样还有人在乎吗？连警局都被人抢了，谁还在乎这些。这才是真正的自由世界！"',
+                choices: [
+                    { id: 'a', label: 'A', text: '"你们知道现在是什么情况吗？"' },
+                    { id: 'b', label: 'B', text: '"你们知道我是谁吗？"' },
+                    { id: 'c', label: 'C', text: '"我能给你们真正的自由"' }
+                ],
+                next: { a: 'eva_trade', b: 'eva_captured_b', c: 'eva_trade' }
+            },
+            eva_captured_b: {
+                title: '第六章：绑架',
+                time: '2026年4月26日 上午10:15',
+                text: '对方嗤笑了一声："你不过是我们的阶下囚。"',
+                choices: [{ id: 'go', label: '继续', text: '继续对话' }],
+                next: { go: 'eva_trade' }
+            },
+            eva_trade: {
+                title: '第六章：真正的"自由"',
+                time: '2026年4月26日 上午8:37',
+                text: '【真正的"自由"】\n\n你拿回了自己的包所幸里面的物资完好无损，你看了一眼盖格计数器和破旧的地图做出了决定：',
+                choices: [
+                    { id: 'a', label: '26', text: '带他们前往旧防空洞' },
+                    { id: 'b', label: '27', text: '带他们前往父亲工作的旧工厂' },
+                    { id: 'c', label: '28', text: '带他们前往河边' }
+                ],
+                next: { a: 'eva_ending_cave', b: 'eva_ending_factory', c: 'eva_river' },
+                effects: { radiation: 80 }
+            },
+            eva_ending_cave: {
+                title: '结局：希望破灭',
+                time: '2026年4月26日 下午3:00',
+                text: '下午三点，暴露在辐射中，走了五个小时。你们终于抵达了防空洞，看着眼前的废墟，你瞬间失去了希望，对方看到眼前这一幕，也愤怒的朝你走来，你知道自己已经不可能活下去了。\n\n【结局6：希望破灭结局】',
+                ending: { type: '死亡结局', title: '希望破灭结局', text: '你的谎言被揭穿了，最终付出了生命的代价。' },
+                effects: { radiation: 200 }
+            },
+            eva_ending_factory: {
+                title: '结局：希望',
+                time: '2026年4月26日 上午10:00',
+                text: '你决定先解决他们再前往防空洞，对方起初对你带着他们来到这里充满了戒备但在你自信的带领下逐渐放松了下来。你对这里再熟悉不过，你到了一座建筑物面前，指着里面说道，"到了，这就是。"对方往里面走进去，而你趁机把最后一个人推了进去并把大门锁了起来。对方气急败坏的威胁到他们出去后一定会杀了你，你无视了他们口中的污言秽语，你知道辐射会替你解决他们，你继续沿着公路向前走去。\n\n【结局：希望】',
+                ending: { type: '好结局', title: '希望', text: '你用智慧解决了危险，继续踏上求生之路。在这个末日世界里，智慧和勇气同样重要。' },
+                effects: { radiation: 140 }
+            },
+            eva_river: {
+                title: '第六章：河边',
+                time: '2026年4月26日 上午9:00',
+                text: '你决定先解决他们再前往防空洞，对方起初对你带着他们来到这里充满了戒备但在你自信的带领下逐渐放松了下来。你看着眼前湍急的河流，心中做出了决定，你趁他们不备把其中一个人推进河水中，你看着围上来的众人做出决定。',
+                choices: [
+                    { id: 'a', label: '29', text: '背水一战' },
+                    { id: 'b', label: '30', text: '跳入河中' }
+                ],
+                next: { a: 'eva_fight', b: 'eva_escape_river' }
+            },
+            eva_fight: {
+                title: '结局：殊死一搏',
+                time: '2026年4月26日 上午9:35',
+                text: '人数和力量上的差距决定了一切，你被他们打到，你清楚的意识到等待自己的只有死亡。\n\n【结局：殊死一搏】',
+                ending: { type: '死亡结局', title: '殊死一搏', text: '你勇敢地战斗到了最后一刻，但最终还是失败了。' }
+            },
+            eva_escape_river: {
+                title: '结局：希望',
+                time: '2026年4月26日 上午10:00',
+                text: '湍急的河水把你冲向了其他地方，你在冰冷的河水中失去了意识，当你再次醒来时，你发现自己已经到了郊外，你顺着道路不断向前走去。\n\n【结局：希望】',
+                ending: { type: '好结局', title: '希望', text: '你成功逃脱了危险，虽然经历了重重困难，但你依然活着，这就是最大的希望。' }
+            }
+        };
+
+        function showScene(sceneId) {
+            const scene = scenes[sceneId];
+            if (!scene) return;
+
+            gameState.currentScene = sceneId;
+            if (scene.time) gameState.currentTime = scene.time;
+            if (scene.distance !== undefined) gameState.distanceFromHome = scene.distance;
+
+            if (scene.setFlags) {
+                Object.keys(scene.setFlags).forEach(flag => {
+                    gameState[flag] = scene.setFlags[flag];
+                });
+            }
+
+            if (scene.effects) {
+                if (scene.effects.inventory) gameState.inventory += scene.effects.inventory;
+                if (scene.effects.radiation) gameState.radiation += scene.effects.radiation;
+                if (scene.effects.savedPeople) gameState.savedPeople += scene.effects.savedPeople;
+                if (scene.effects.hasTools) gameState.hasTools = true;
+                if (scene.effects.hasEva) gameState.hasEva = true;
+                if (scene.effects.hasAndre) gameState.hasAndre = true;
+                if (scene.effects.hasKids) gameState.hasKids = true;
+                if (scene.effects.didModifyCar !== undefined) gameState.didModifyCar = scene.effects.didModifyCar;
+            }
+
+            document.getElementById('sceneTitle').textContent = scene.title;
+            document.getElementById('storyText').textContent = scene.text;
+            
+            const unknownStatus = scene.time && scene.time.includes('？？？') || scene.text && scene.text.includes('？？？');
+            
+            document.getElementById('gameTime').textContent = scene.time || '-';
+            document.getElementById('gameDistance').textContent = scene.distance ? scene.distance + '公里' : '-';
+            
+            if (unknownStatus) {
+                document.getElementById('gameInventory').textContent = '？？？';
+                document.getElementById('gameSaved').textContent = '？？？';
+                document.getElementById('gameTools').textContent = '？？？';
+                document.getElementById('gameRadiation').textContent = '？？？';
+            } else {
+                document.getElementById('gameInventory').textContent = gameState.inventory;
+                document.getElementById('gameSaved').textContent = gameState.savedPeople;
+                document.getElementById('gameTools').textContent = gameState.hasTools ? '是' : '否';
+                document.getElementById('gameRadiation').textContent = gameState.radiation;
+            }
+
+            const choicesList = document.getElementById('choicesList');
+            choicesList.innerHTML = '';
+
+            if (scene.choices && scene.choices.length > 0) {
+                scene.choices.forEach((choice, index) => {
+                    if (choice.requiresInventory && gameState.inventory < choice.requiresInventory) {
+                        return;
+                    }
+                    setTimeout(() => {
+                        const btn = document.createElement('button');
+                        btn.className = 'choice-btn';
+                        btn.innerHTML = `<span class="choice-label">${choice.label}</span>${choice.text}`;
+                        btn.onclick = () => handleChoice(choice.id);
+                        btn.style.opacity = '0';
+                        btn.style.transform = 'translateY(10px)';
+                        btn.style.transition = 'all 0.3s ease';
+                        choicesList.appendChild(btn);
+                        setTimeout(() => {
+                            btn.style.opacity = '1';
+                            btn.style.transform = 'translateY(0)';
+                        }, 50);
+                    }, index * 100);
+                });
+            } else if (scene.next || scene.nextScene) {
+                setTimeout(() => {
+                    let nextId;
+                    if (typeof scene.nextScene === 'function') {
+                        nextId = scene.nextScene();
+                    } else {
+                        nextId = scene.next.default || Object.keys(scene.next)[0];
+                    }
+                    if (nextId) showScene(nextId);
+                }, 3000);
+            }
+
+            if (scene.ending) {
+                setTimeout(() => showEnding(scene.ending), 3000);
+            }
+        }
+
+        function handleChoice(choiceId) {
+            const currentScene = scenes[gameState.currentScene];
+            if (!currentScene || !currentScene.next) return;
+
+            if (currentScene.effects && currentScene.effects[choiceId]) {
+                const effects = currentScene.effects[choiceId];
+                if (effects.inventory) gameState.inventory += effects.inventory;
+                if (effects.radiation) gameState.radiation += effects.radiation;
+                if (effects.savedPeople) gameState.savedPeople += effects.savedPeople;
+                if (effects.hasTools) gameState.hasTools = true;
+                if (effects.hasEva) gameState.hasEva = true;
+                if (effects.hasAndre) gameState.hasAndre = true;
+                if (effects.hasKids) gameState.hasKids = true;
+                if (effects.didModifyCar !== undefined) gameState.didModifyCar = effects.didModifyCar;
+                if (effects.finalChoice) gameState.finalChoice = effects.finalChoice;
+                if (effects.shelterChoice) gameState.shelterChoice = effects.shelterChoice;
+            }
+
+            const nextSceneId = currentScene.next[choiceId];
+            if (nextSceneId) {
+                showScene(nextSceneId);
+            }
+        }
+
+        function showEnding(ending) {
+            document.getElementById('endingTitle').textContent = ending.title;
+            document.getElementById('endingType').textContent = ending.type;
+            document.getElementById('endingText').textContent = ending.text;
+            document.getElementById('endingStats').innerHTML = '';
+            document.getElementById('endingScreen').classList.add('show');
+        }
+
+        function restartGame() {
+            gameState = {
+                inventory: 0,
+                radiation: 0,
+                savedPeople: 0,
+                currentScene: 'prologue',
+                protagonist: null,
+                currentTime: '2026年4月26日 凌晨1:23',
+                distanceFromHome: null,
+                hasTools: false,
+                hasEva: false,
+                hasAndre: false,
+                hasKids: false,
+                didModifyCar: false,
+                finalChoice: null,
+                shelterChoice: null
+            };
+            document.getElementById('endingScreen').classList.remove('show');
+            showScene('prologue');
+        }
+
+        setTimeout(() => {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            showScene('prologue');
+        }, 1000);
+    </script>
+</body>
+</html>
